@@ -78,6 +78,7 @@ class TypesenseListener implements EventSubscriberInterface {
             $event->document['puzzel_platen'][] = StringUtil::decodeEntities($objPuzzelPlaat->naam_nl);
             $event->document['puzzel_platen'][] = StringUtil::decodeEntities($objPuzzelPlaat->naam_en);
           }
+          $event->document['puzzel_platen'] = array_values(array_unique($event->document['puzzel_platen']));
         }
       }
     }
