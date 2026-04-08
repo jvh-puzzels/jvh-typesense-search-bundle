@@ -21,7 +21,11 @@ namespace JvH\JvHTypesenseSearchBundle\EventListener;
 use Contao\CoreBundle\Search\Document;
 use Contao\Database;
 use Contao\Environment;
+use Contao\File;
+use Contao\FilesModel;
 use Contao\StringUtil;
+use Contao\System;
+use JvH\JvHPuzzelDbBundle\Model\PuzzelPlaatModel;
 use Krabo\TypesenseSearchBundle\Event\TypesenseIndexEvent;
 use Krabo\TypesenseSearchBundle\Event\TypesenseSchemaEvent;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
@@ -81,7 +85,21 @@ class TypesenseListener implements EventSubscriberInterface {
           $event->document['puzzel_platen'] = array_values(array_unique($event->document['puzzel_platen']));
         }
       }
+      $jsonLdScriptsData =  $document->extractJsonLdScripts('https://schema.jvh-puzzels.nl/puzzelplaat');
+      foreach ($jsonLdScriptsData as $jsonLdScript) {
+        if (!empty($jsonLdScript['id'])) {
+          $puzzelPlaat = PuzzelPlaatModel::findByPk($jsonLdScript['id']);
+          if ($puzzelPlaat && !empty($puzzelPlaat->singleSRC)) {
+            $event->document['image_url'] = $this->getImageUrl($puzzelPlaat->singleSRC);
+          }
+        }
+      }
     }
+  }
+
+  protected function getImageUrl($imgId): ?string {
+    $fileModel = FilesModel::findById($imgId);
+    return Environment::get('base') . $fileModel->path;
   }
 
   public function onTypesenseSchema(TypesenseSchemaEvent $event) {

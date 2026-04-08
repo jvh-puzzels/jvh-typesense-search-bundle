@@ -3,7 +3,7 @@
   "description":"Typesense Search Bundle customizations for JvH",
   "type": "contao-bundle",
   "license":"LGPL-3.0-or-later",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "require": {
     "contao/core-bundle": "^4.9",
     "krabo/typesense-search-bundle": "^1.0"
