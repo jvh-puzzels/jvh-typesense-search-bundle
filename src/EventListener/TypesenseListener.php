@@ -63,6 +63,13 @@ class TypesenseListener implements EventSubscriberInterface {
 
   public function onTypesenseIndex(TypesenseIndexEvent $event) {
     if ($event->type == 'page') {
+      $baseUrl = Environment::get('base');
+      if (empty($baseUrl) && !empty($event->sourceData['rootPageId'])) {
+        $objRootPage = \PageModel::findByPk($event->sourceData['rootPageId']);
+        if ($objRootPage) {
+          $baseUrl = $objRootPage->getAbsoluteUrl();
+        }
+      }
       /** @var Document $document */
       $document = $event->sourceData['document'];
       $event->document['image_url'] = '';
@@ -71,7 +78,7 @@ class TypesenseListener implements EventSubscriberInterface {
       if ($page && $page->searchImage) {
         $image = \FilesModel::findByUuid($page->searchImage);
         if ($image) {
-          $event->document['image_url'] = Environment::get('base') . $image->path;
+          $event->document['image_url'] = $baseUrl . $image->path;
         }
       }
       $jsonLdScriptsData =  $document->extractJsonLdScripts('https://json-ld.org/contexts/person.jsonld');
@@ -90,16 +97,14 @@ class TypesenseListener implements EventSubscriberInterface {
         if (!empty($jsonLdScript['id'])) {
           $puzzelPlaat = PuzzelPlaatModel::findByPk($jsonLdScript['id']);
           if ($puzzelPlaat && !empty($puzzelPlaat->singleSRC)) {
-            $event->document['image_url'] = $this->getImageUrl($puzzelPlaat->singleSRC);
+            $image = FilesModel::findById($puzzelPlaat->singleSRC);
+            if ($image) {
+              $event->document['image_url'] = $baseUrl . $image->path;
+            }
           }
         }
       }
     }
-  }
-
-  protected function getImageUrl($imgId): ?string {
-    $fileModel = FilesModel::findById($imgId);
-    return Environment::get('base') . $fileModel->path;
   }
 
   public function onTypesenseSchema(TypesenseSchemaEvent $event) {
