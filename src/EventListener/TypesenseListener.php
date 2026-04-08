@@ -18,6 +18,7 @@
 
 namespace JvH\JvHTypesenseSearchBundle\EventListener;
 
+use Contao\CoreBundle\Framework\ContaoFramework;
 use Contao\CoreBundle\Search\Document;
 use Contao\Database;
 use Contao\Environment;
@@ -64,12 +65,14 @@ class TypesenseListener implements EventSubscriberInterface {
   public function onTypesenseIndex(TypesenseIndexEvent $event) {
     if ($event->type == 'page') {
       $baseUrl = Environment::get('base');
-      if (empty($baseUrl) && !empty($event->sourceData['rootPageId'])) {
+
+      if (!empty($event->sourceData['rootPageId'])) {
         $objRootPage = \PageModel::findByPk($event->sourceData['rootPageId']);
         if ($objRootPage) {
-          $baseUrl = $objRootPage->getAbsoluteUrl();
+          $baseUrl = ($objRootPage->useSSL ? 'https://' : 'http://' ) . $objRootPage->dns;
         }
       }
+
       /** @var Document $document */
       $document = $event->sourceData['document'];
       $event->document['image_url'] = '';
