@@ -1,0 +1,19 @@
+{
+  "name":"jvh/jvh-typesense-search-bundle",
+  "description":"Typesense Search Bundle customizations for JvH",
+  "type": "contao-bundle",
+  "license":"LGPL-3.0-or-later",
+  "version": "1.0.0",
+  "require": {
+    "contao/core-bundle": "^4.9",
+    "krabo/typesense-search-bundle": "^1.0"
+  },
+  "extra": {
+    "contao-manager-plugin": "JvH\\JvHTypesenseSearchBundle\\ContaoManager\\Plugin"
+  },
+  "autoload": {
+    "psr-4": {
+      "JvH\\JvHTypesenseSearchBundle\\": "src/"
+    }
+  }
+}
