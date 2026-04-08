@@ -112,13 +112,13 @@ class TypesenseListener implements EventSubscriberInterface {
 
   public function onTypesenseSchema(TypesenseSchemaEvent $event) {
     if ($event->type == 'page') {
-      $event->schema[] = [
+      $event->schema['fields'][] = [
         'name' => 'image_url',
         'type' => 'string',
         'index' => false,
         'optional' => true,
       ];
-      $event->schema[] = [
+      $event->schema['fields'][] = [
         'name' => 'puzzel_platen',
         'type' => 'string[]',
         'index' => true,
