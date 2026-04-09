@@ -69,7 +69,7 @@ class TypesenseListener implements EventSubscriberInterface {
       if (!empty($event->sourceData['rootPageId'])) {
         $objRootPage = \PageModel::findByPk($event->sourceData['rootPageId']);
         if ($objRootPage) {
-          $baseUrl = ($objRootPage->useSSL ? 'https://' : 'http://' ) . $objRootPage->dns;
+          $baseUrl = ($objRootPage->useSSL ? 'https://' : 'http://' ) . $objRootPage->dns . '/';
         }
       }
 
