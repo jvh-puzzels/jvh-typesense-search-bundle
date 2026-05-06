@@ -18,20 +18,27 @@
 
 namespace JvH\JvHTypesenseSearchBundle\EventListener;
 
-use Contao\CoreBundle\Framework\ContaoFramework;
 use Contao\CoreBundle\Search\Document;
 use Contao\Database;
 use Contao\Environment;
-use Contao\File;
 use Contao\FilesModel;
 use Contao\StringUtil;
-use Contao\System;
 use JvH\JvHPuzzelDbBundle\Model\PuzzelPlaatModel;
+use Krabo\TypesenseSearchBundle\Event\TypesenseFECollectionEvent;
 use Krabo\TypesenseSearchBundle\Event\TypesenseIndexEvent;
+use Krabo\TypesenseSearchBundle\Event\TypesensePostSchemaEvent;
 use Krabo\TypesenseSearchBundle\Event\TypesenseSchemaEvent;
+use Krabo\TypesenseSearchBundle\Typesense;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
+use Symfony\Component\HttpFoundation\RequestStack;
 
 class TypesenseListener implements EventSubscriberInterface {
+
+  protected RequestStack $requestStack;
+
+  public function __construct(RequestStack $requestStack) {
+    $this->requestStack = $requestStack;
+  }
 
   /**
    * Returns an array of event names this subscriber wants to listen to.
@@ -59,7 +66,27 @@ class TypesenseListener implements EventSubscriberInterface {
     return [
       TypesenseIndexEvent::class => 'onTypesenseIndex',
       TypesenseSchemaEvent::class => 'onTypesenseSchema',
+      TypesensePostSchemaEvent::class => 'onTypesensePostSchema',
+      TypesenseFECollectionEvent::class => 'onTypesenseFECollection',
     ];
+  }
+
+  public function onTypesenseFECollection(TypesenseFECollectionEvent $event) {
+    $analytics_tags = [];
+    $request = $this->requestStack->getMainRequest();
+    $ip = $request->getClientIp();
+    if (!empty($GLOBALS['TL_CONFIG']['jvh_typesense_backoffice_ip'])) {
+      $ips = explode(" ", $GLOBALS['TL_CONFIG']['jvh_typesense_backoffice_ip']);
+      if (in_array($ip, $ips)) {
+        $analytics_tags[] = 'Backoffice';
+      }
+    }
+    $analytics_tags[] = 'Module (' . $event->module->id . ')';
+    if (isset($GLOBALS['TL_LANG']['FMD'][$event->module->type])) {
+      $analytics_tags[] = $GLOBALS['TL_LANG']['FMD'][$event->module->type][0];
+    }
+    $analytics_tags[] = $event->collection['label'];
+    $event->collection['analytics_tag'] = '"' . implode(" ", $analytics_tags) . '"';
   }
 
   public function onTypesenseIndex(TypesenseIndexEvent $event) {
@@ -125,6 +152,67 @@ class TypesenseListener implements EventSubscriberInterface {
         'optional' => true,
       ];
     }
+  }
+
+  public function onTypesensePostSchema(TypesensePostSchemaEvent $event) {
+    $collection = $event->schema['name'];
+    $this->createAnalyticsRule($collection, 'popular_queries', $event->typesense);
+    $this->createAnalyticsRule($collection, 'nohits_queries', $event->typesense);
+  }
+
+  protected function createAnalyticsRule(string $collection, string $type, Typesense $client): void {
+    $destinationCollection = $type;
+    if (!$client->doesCollectionExist($destinationCollection)) {
+      $schema['name'] = $client->getPrefix() . $destinationCollection;
+      $schema['fields'] = [
+        [
+          'name' => 'q',
+          'type' => 'string',
+        ],
+        [
+          'name' => 'count',
+          'type' => 'int32',
+        ],
+        [
+          'name' => 'analytics_tag',
+          'type' => 'string',
+          'optional' => true,
+          'facet' => true,
+        ],
+      ];
+      try {
+        $client->getClient()->collections->create($schema);
+      } catch (\Exception $e) {
+        // Do nothing
+      }
+    }
+
+    $rule = [
+      'name' => $collection . '_' . $type,
+      'type' => $type,
+      'collection' => $collection,
+      'event_type' => 'search',
+      'ruletag' => $collection,
+      'params' => [
+        'meta_fields' => ['analytics_tag'],
+        'destination_collection' => $client->getPrefix() . $destinationCollection,
+        'limit' => 1000,
+        'capture_search_requests' => true,
+      ],
+    ];
+    if (!$this->doesRuleExist($rule['name'], $client)) {
+      $client->getClient()->analytics->rules()->create([$rule]);
+    }
+  }
+
+  public function doesRuleExist(string $ruleName, Typesense $client): bool {
+    $rules = $client->getClient()->analytics->rules()->retrieve();
+    foreach ($rules as $rule) {
+      if ($rule['name'] === $ruleName) {
+        return true;
+      }
+    }
+    return false;
   }
 
 
